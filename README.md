@@ -18,7 +18,7 @@ Raspberry pi OS(buster) Raspbian.
 
 ##	Installation procedure
 
-step1 : Clone the installer and start the installation.
+step1 : Upgrade rpi OS.
 
       $ sudo apt update && sudo apt upgrade
 
