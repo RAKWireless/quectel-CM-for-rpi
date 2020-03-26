@@ -10,12 +10,31 @@ cleanup_gpio()
 }
 
 cd /sys/class/gpio/
-echo 5 > export
-echo 6 > export
-echo 13 > export
-echo 19 > export
-echo 21 > export
-echo 26 > export
+if [ ! -d /sys/class/gpio/gpio5 ]; then
+    echo 5 > export
+fi
+
+if [ ! -d /sys/class/gpio/gpio6 ]; then
+    echo 6 > export
+fi
+
+if [ ! -d /sys/class/gpio/gpio13 ]; then
+    echo 13 > export
+fi
+
+if [ ! -d /sys/class/gpio/gpio19 ]; then
+    echo 19 > export
+fi
+
+if [ ! -d /sys/class/gpio/gpio21 ]; then
+    echo 21 > export
+fi
+
+if [ ! -d /sys/class/gpio/gpio26 ]; then
+    echo 26 > export
+fi
+
+
 echo out > gpio5/direction
 echo out > gpio6/direction
 echo out > gpio13/direction
@@ -33,18 +52,12 @@ echo 0 > gpio26/value
 #
 cd /sys/class/gpio/
 
-echo "18" > /sys/class/gpio/export
+if [ ! -d /sys/class/gpio/gpio18 ]; then
+    echo "18" > /sys/class/gpio/export
+fi
 echo "out" > /sys/class/gpio/gpio18/direction
 echo 0 > /sys/class/gpio/gpio18/value
 sleep 0.2
 echo 1 > /sys/class/gpio/gpio18/value
 sleep 0.2
 echo 0 > /sys/class/gpio/gpio18/value
-
-cleanup_gpio 5
-cleanup_gpio 6
-cleanup_gpio 13
-cleanup_gpio 19
-cleanup_gpio 21
-cleanup_gpio 26
-cleanup_gpio 18

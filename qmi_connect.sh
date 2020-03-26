@@ -27,6 +27,7 @@ while true; do
             let ping_cnt_failure=ping_cnt_failure+1
             echo "ping 8.8.8.8 normal failure, ping_cnt_failure:$ping_cnt_failure."
             if [ $ping_cnt_failure -gt 5 ]; then
+                sleep 20
                 break
             fi
         fi
@@ -35,6 +36,7 @@ while true; do
             echo "ping 8.8.8.8 via wwan0 ok, add default wwan0..."
             route del default
             route add default dev wwan0
+            let ping_cnt_failure=0
             continue
         fi
     else
