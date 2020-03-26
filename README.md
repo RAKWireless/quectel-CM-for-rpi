@@ -1,5 +1,5 @@
 # quectel-CM-for-rpi4
-quectel-CM for RAK gateway LTE module (for RAK7244 or RAK2013+rpi4).
+quectel-CM for RAK gateway LTE module (for RAK7244 or RAK2013+rpi4, rpi3 and lower are not supported).
 
 ##	Introduction 
 
@@ -16,14 +16,13 @@ Raspberry pi OS(buster) Raspbian.
 2020-03-26 V1.0.0
 * 1.quectel support.
 
-
 ##	Installation procedure
 
 step1 : Clone the installer and start the installation.
 
       $ sudo apt update && sudo apt upgrade
 
-step2 : Reboot raspberry pi.
+step2 : Reboot raspberry pi, After restarting, use "uname -r" to confirm the kernel version is 4.19.xx.
 
 step3 : Clone the installer and start the installation.
 
