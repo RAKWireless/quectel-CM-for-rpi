@@ -7,6 +7,11 @@ Created By Metin Koc, Nov 2018
 Modified by Saeed Johar, 11th June 2019
 '
 
+if [ $UID != 0 ]; then
+    echo_error "Operation not permitted. Forgot sudo?"
+    exit 1
+fi
+
 echo -e "\033[1;33m Input APN name:\033[0m"
 #echo "What is the APN?"
 read carrierapn
