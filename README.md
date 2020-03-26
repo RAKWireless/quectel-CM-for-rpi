@@ -32,4 +32,8 @@ step3 : Clone the installer and start the installation.
 
 step 4: If you want rak2013 to dial automatically after the Raspberry Pi starts, please enter the "sudo systemctl enable qmi_connect.service" command after the installation is complete.
 
+##	Other
+
+When rak2013 dials successfully, all internet access will go through rak2013.
+
 You can view some other function descriptions in the advanced directory.
