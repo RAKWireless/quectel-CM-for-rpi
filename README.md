@@ -1,5 +1,5 @@
 # quectel-CM-for-rpi4
-quectel-CM for RAK gateway LTE module (for RAK7244 or RAK2013+rpi4, rpi3 and lower are not supported).
+quectel-CM for RAK gateway LTE module (for RAK7244 or RAK2013+rpi4. Rpi3 and lower are not supported).
 
 ##	Introduction 
 
