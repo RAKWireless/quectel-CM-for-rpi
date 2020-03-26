@@ -1,0 +1,13 @@
+[Unit]
+Description=QMI Connection
+
+[Service]
+WorkingDirectory=/usr/local/rak/qmi/
+ExecStart=/usr/local/rak/qmi/qmi_connect.sh
+SyslogIdentifier=qmi_rak2013
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+
