@@ -1,5 +1,6 @@
 #!/bin/bash
 
+echo "rak_qmi version: 1.0.1"
 cd /usr/local/rak/qmi
 
 while true; do

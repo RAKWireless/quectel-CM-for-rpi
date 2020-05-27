@@ -62,4 +62,4 @@ sed -i "s/#APN/$carrierapn/" /usr/local/rak/qmi/qmi_connect.sh
 
 #systemctl enable qmi_connect.service
 
-echo -e "\033[1;33m If you want to set it to dial automatically after the operating system starts, please run the \"sudo systemctl enable qmi_connect.service\" command and restart rpi.\033[0m"
+echo -e "\033[1;33m If you want to set $1 to dial automatically after the operating system starts, please run the \"sudo systemctl enable qmi_connect.service\" command and restart rpi.\033[0m"
