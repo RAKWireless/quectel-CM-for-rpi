@@ -14,7 +14,7 @@ fi
 
 if [ $# -eq 0 ]; then
     echo "The correct command format is:" 
-    echo "      sudo ./modify_apn.sh \"your_apn_name\"."
+    echo "      sudo $0 \"your_apn_name\"."
     exit 1
 fi
 
