@@ -3,12 +3,12 @@
 set -e
 
 if [ $UID != 0 ]; then
-    echo_error "Operation not permitted. Forgot sudo?"
+    echo "Operation not permitted. Forgot sudo?"
     exit 1
 fi
 
 if [ ! -f /usr/local/rak/qmi/qmi_connect.sh ]; then
-    echo "Please confirm that you have quectel-CM-for-rpi4 installed?"
+    echo "Please confirm that you have quectel-CM-for-rpi installed?"
     exit 1
 fi
 

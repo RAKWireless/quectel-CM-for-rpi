@@ -1,65 +1,93 @@
 #!/bin/bash
 
-: '
-QMI installation script by Sixfab
-
-Created By Metin Koc, Nov 2018
-Modified by Saeed Johar, 11th June 2019
-'
+# Stop on the first sign of trouble
+#set -e
 
 if [ $UID != 0 ]; then
-    echo_error "Operation not permitted. Forgot sudo?"
+    echo "ERROR: Operation not permitted. Forgot sudo?"
     exit 1
 fi
 
-echo -e "\033[1;33m Input APN name:\033[0m"
-#echo "What is the APN?"
-read carrierapn
+function echo_yellow()
+{
+    echo -e "\033[1;33m$1\033[0m"
+}
 
-apt update -y
-set -e
-apt-get install raspberrypi-kernel-headers -y
+do_check_variable_type(){
+    local a="$1"
+    printf "%d" "$a" &>/dev/null && return 0
+    printf "%d" "$(echo $a|sed 's/^[+-]\?0\+//')" &>/dev/null && return 0
+    printf "%f" "$a" &>/dev/null && return 1
+    [ ${#a} -eq 1 ] && return 2
+    return 3
+}
 
-echo -e "\033[1;33mClear Files$\033[0m"
-rm -rf /tmp/files
-rm -rf /tmp/files.zip
-mkdir /tmp/files/
-unzip quectel-CM.zip -d /tmp/files/ 
+do_check_variable_type_echo(){
+    local a="$1"
+    printf "%d" "$a" &>/dev/null && echo "integer, return 0" && return 0
+    printf "%d" "$(echo $a|sed 's/^[+-]\?0\+//')" &>/dev/null && echo "integer,return 0" && return 0
+    printf "%f" "$a" &>/dev/null && echo "number,return 1" && return 1
+    [ ${#a} -eq 1 ] && echo "char, return 2" && return 2
+    echo "string, return 3" && return 3
+}
 
-echo -e "\033[1;33m Checking Kernel\033[0m"
-case $(uname -r) in
-    4.19*) echo $(uname -r) based kernel found 
-        unzip drivers.zip -d /tmp/files/ ;;
-    *) echo "Driver for $(uname -r) kernel not found";exit 1;
+function echo_model_info()
+{
+    echo_yellow "Please select your LTE model:"
+    echo_yellow "*\t1.RAK2013"
+    echo_yellow "*\t2.RAK8213"
+    echo_yellow  "Please enter 1-2 to select the model:\c"
+}
 
-esac
+function do_set_model_to_json()
+{
+    JSON_FILE=./rak/rak/rak_gw_model.json
+    RAK_GW_JSON=./rak/rak/gateway-config-info.json
+    INSTALL_LTE=0
+    if [ $1 -eq 1 ]; then
+        GW_MODEL=RAK2013
+    elif [ $1 -eq 2 ]; then
+        GW_MODEL=RAK8213
+    else
+        # Never come here
+        echo "error"
+        return 1
+    fi
 
-apt-get install udhcpc -y
+    pushd qmi
+    ./install.sh $GW_MODEL
+    popd
+}
 
-mkdir -p /usr/share/udhcpc
-cp /tmp/files/quectel-CM/default.script /usr/share/udhcpc/
-chmod +x /usr/share/udhcpc/default.script
+function do_set_model()
+{
+    echo_model_info
+    while [ 1 -eq 1 ]
+    do
+        read RAK_MODEL
+        if [ -z "$RAK_MODEL" ]; then
+            echo_yellow "Please enter 1-2 to select the model:\c"
+            continue
+        fi
 
-echo -e "\033[1;33m Change directory to /tmp/files/drivers\033[0m"
-pushd /tmp/files/drivers
-make && make install
-popd
+        do_check_variable_type $RAK_MODEL
+        RET=$?
 
-echo -e "\033[1;33m Change directory to /tmp/files/quectel-CM\033[0m"
-pushd /tmp/files/quectel-CM
-make
-popd
+        if [ $RET -eq 0 ]; then
+            if [ $RAK_MODEL -lt 1 ] || [ $RAK_MODEL -gt 2 ]; then
+                echo_yellow "Please enter 1-2 to select the model:\c"
+                continue
+            else
+                do_set_model_to_json $RAK_MODEL
+                return 0
+            fi
+        else
+            echo_yellow "Please enter 1-2 to select the model:\c"
+            continue
 
-mkdir -p /usr/local/rak/qmi/
-cp /tmp/files/quectel-CM/quectel-CM /usr/local/rak/qmi/ -f
-cp /tmp/files/quectel-CM/quectel-qmi-proxy /usr/local/rak/qmi/ -f
+        fi
+    done
+}
 
-cp qmi_connect.sh /usr/local/rak/qmi/
-cp active_lte_module.sh /usr/local/rak/qmi/
-cp qmi_connect.service /etc/systemd/system/
+do_set_model
 
-sed -i "s/#APN/$carrierapn/" /usr/local/rak/qmi/qmi_connect.sh
-
-#systemctl enable qmi_connect.service
-
-echo -e "\033[1;33m If you want to set it to dial automatically after the operating system starts, please run the \"sudo systemctl enable qmi_connect.service\" command and restart rpi.\033[0m"
