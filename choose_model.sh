@@ -46,15 +46,14 @@ function echo_model_info()
 
 function do_set_model_to_json()
 {
+    set -e
     JSON_FILE=./rak/rak/rak_gw_model.json
     RAK_GW_JSON=./rak/rak/gateway-config-info.json
     INSTALL_LTE=0
     if [ $1 -eq 1 ]; then
         GW_MODEL=RAK2013
-        do_set_spi_to_json 1
     elif [ $1 -eq 2 ]; then
         GW_MODEL=RAK8213
-        do_set_spi_to_json 1
     else
         # Never come here
         echo "error"
@@ -63,10 +62,12 @@ function do_set_model_to_json()
 
     linenum=`sed -n "/gw_model/=" $JSON_FILE`
     sed -i "${linenum}c\\\\t\"gw_model\": \"$GW_MODEL\"," $JSON_FILE
+    set +e
 }
 
 function do_set_model()
 {
+    set -e
     echo_model_info
     while [ 1 -eq 1 ]
     do
@@ -85,6 +86,7 @@ function do_set_model()
                 continue
             else
                 do_set_model_to_json $RAK_MODEL
+                set +e
                 return 0
             fi
         else
