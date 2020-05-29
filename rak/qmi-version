@@ -8,12 +8,6 @@ RAK_MODEL=`do_get_gw_model`
 GW_VERSION=`do_get_gw_version`
 
 
-if [ "$INSTALL_FROM_IMG" = "1" ]; then
-	EXTRA_STR="install from firmware"
-else
-	EXTRA_STR="install from source code"
-fi
-
 KERNEL_VERSION=`uname -r`
 RPI_MODEL=`cat -v /proc/device-tree/model`
 RPI_MODEL=${RPI_MODEL%%^*}
@@ -22,5 +16,5 @@ RPI_OS=${RPI_OS#*=}
 
 
 echo "$RPI_MODEL, OS $RPI_OS, $KERNEL_VERSION."
-echo "RAKWireless gateway $GW_MODEL_STR version $GW_VERSION $EXTRA_STR."
+echo "RAKWireless $RAK_MODEL version $GW_VERSION $EXTRA_STR."
 

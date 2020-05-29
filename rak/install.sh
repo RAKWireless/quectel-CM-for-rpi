@@ -17,8 +17,8 @@ systemctl disable hciuart
 
 apt install git ppp dialog jq minicom monit -y
 
-cp gateway-config /usr/bin/
-cp gateway-version /usr/bin/
+cp qmi-config /usr/bin/
+cp qmi-version /usr/bin/
 cp rak /usr/local/ -rf
 
 if [ "$1" = "create_img" ]; then
