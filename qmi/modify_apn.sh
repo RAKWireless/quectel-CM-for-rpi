@@ -18,5 +18,5 @@ if [ $# -eq 0 ]; then
     exit 1
 fi
 
-cp ../qmi_connect.sh /usr/local/rak/qmi/qmi_connect.sh
+#cp ../qmi_connect.sh /usr/local/rak/qmi/qmi_connect.sh
 sed -i "s/#APN/$1/" /usr/local/rak/qmi/qmi_connect.sh

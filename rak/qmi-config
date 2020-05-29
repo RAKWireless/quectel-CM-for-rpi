@@ -371,7 +371,7 @@ do_set_apn_name()
         echo "error"
     elif [ $RET -eq 0 ]; then
         new_apn_name="$( cat /tmp/apn_name  )" 
-
+        cp /usr/local/rak/qmi/.rak_qmi_connect.sh /usr/local/rak/qmi/qmi_connect.sh
         /usr/local/rak/qmi/modify_apn.sh "${new_apn_name}" >/dev/null
         rm /tmp/apn_name -rf
 
