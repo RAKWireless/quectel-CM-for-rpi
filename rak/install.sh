@@ -15,7 +15,7 @@ fi
 
 systemctl disable hciuart
 
-apt install git ppp dialog jq minicom monit i2c-tools -y
+apt install git ppp dialog jq minicom monit -y
 
 cp gateway-config /usr/bin/
 cp gateway-version /usr/bin/
