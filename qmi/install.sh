@@ -60,6 +60,7 @@ cp /tmp/files/quectel-CM/quectel-CM /usr/local/rak/qmi/ -f
 cp /tmp/files/quectel-CM/quectel-qmi-proxy /usr/local/rak/qmi/ -f
 
 cp qmi_connect.sh /usr/local/rak/qmi/
+cp qmi_connect.sh /usr/local/rak/qmi/.rak_qmi_connect.sh
 cp modify_apn.sh /usr/local/rak/qmi/
 
 if [ "$RAK_GW_MODEL" = "RAK2013" ]; then
