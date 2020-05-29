@@ -5,9 +5,21 @@ if [ $UID != 0 ]; then
     exit 1
 fi
 
-echo -e "\033[1;33m Input APN name:\033[0m"
-#echo "What is the APN?"
-read carrierapn
+SCRIPT_COMMON_FILE=$(pwd)/../rak/rak/shell_script/rak_common.sh
+source $SCRIPT_COMMON_FILE
+
+
+RAK_GW_MODEL=`do_get_gw_model`
+
+
+if [ "$1" = "create_img" ]; then
+    carrierapn="hologram"
+else
+    echo -e "\033[1;33m Input APN name:\033[0m"
+    #echo "What is the APN?"
+    read carrierapn
+fi
+
 
 apt update -y
 set -e
@@ -50,10 +62,10 @@ cp /tmp/files/quectel-CM/quectel-qmi-proxy /usr/local/rak/qmi/ -f
 cp qmi_connect.sh /usr/local/rak/qmi/
 cp modify_apn.sh /usr/local/rak/qmi/
 
-if [ "$1" = "RAK2013" ]; then
+if [ "$RAK_GW_MODEL" = "RAK2013" ]; then
     cp active_lte_module_2013.sh /usr/local/rak/qmi/active_lte_module.sh
     cp active_lte_module_2013.sh /usr/local/rak/bin/active_lte_module.sh
-elif [ "$1" = "RAK8213" ]; then
+elif [ "$RAK_GW_MODEL" = "RAK8213" ]; then
     cp active_lte_module_8213.sh /usr/local/rak/qmi/active_lte_module.sh
     cp active_lte_module_8213.sh /usr/local/rak/bin/active_lte_module.sh
 else
