@@ -1,0 +1,27 @@
+{
+	"wifi":
+	{
+		"wifi_mode":"1",
+		"wifi_ip":"",
+		"wifi_gw":"",
+		"ap_ssid":"rakwireless_xxxx",
+		"ap_pwd":"rakwireless"
+	},
+	"lan":
+	{
+		"lan_ip":"192.168.10.10",
+		"lan_gw":"192.168.10.1"
+	},
+	"apn":
+	{
+		"apn_name":"HOLOGRAM",
+		"apn_baud":"115200"
+	},
+	"time":
+	{
+		"sync_time":0
+	},
+	"install_img":"0",
+	"install_lte":"0",
+	"lte_mode":"2"
+}

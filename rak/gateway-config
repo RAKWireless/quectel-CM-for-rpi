@@ -1,0 +1,483 @@
+#!/bin/bash
+
+source /usr/local/rak/shell_script/rak_common.sh
+
+GATEWAY_CONFIG_INFO=/usr/local/rak/gateway-config-info.json
+
+rpi_model=`do_get_rpi_model`
+GW_MODEL=`do_get_gw_model`
+GW_VERSION=`do_get_gw_version`
+
+INSTALL_FROM_IMG=`do_get_gateway_info install_img`
+INSTALL_LTE=`do_get_gw_install_lte`
+
+do_check_ipaddr()
+{
+    echo $1|grep "^[0-9]\{1,3\}\.\([0-9]\{1,3\}\.\)\{2\}[0-9]\{1,3\}$" > /dev/null;
+    if [ $? -ne 0 ]
+    then
+        echo "Bad IP address" 
+        return 1
+    fi
+    ipaddr=$1
+    a=`echo $ipaddr|awk -F . '{print $1}'`
+    b=`echo $ipaddr|awk -F . '{print $2}'`
+    c=`echo $ipaddr|awk -F . '{print $3}'`
+    d=`echo $ipaddr|awk -F . '{print $4}'`
+    for num in $a $b $c $d
+    do
+        if [ $num -gt 255 ] || [ $num -lt 0 ] 
+        then
+            echo "Bad IP address" 
+            return 1
+        fi
+   done
+
+   return 0
+}
+
+do_enable_ap_mode()
+{
+    dialog --title "Configure wifi" --yesno "If ap mode is enabled, the saved ssid will be lost." 5 55
+    if [ "$?" = "0" ]; then
+        write_json_wifi_mode 1
+        systemctl enable create_ap
+
+        echo "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1
+" > /etc/wpa_supplicant/wpa_supplicant.conf
+        dialog --title "Enable AP Mode" --msgbox "The AP mode will active after the operating system reboot." 5 70
+    fi
+}
+
+do_enable_wifi_mode()
+{
+    write_json_wifi_mode 2
+    systemctl disable create_ap
+
+    dialog --title "Enable Wifi Mode" --msgbox "The Client mode will active after the operating system reboot." 5 70
+}
+
+do_modify_ssid_for_ap()
+{
+    echo "aaa"
+    rm /tmp/rak_ssid -rf
+    mkfifo /tmp/rak_ssid
+    rm /tmp/rak_ap_pwd -rf
+    mkfifo /tmp/rak_ap_pwd
+
+    # get old ssid
+    old_ap_ssid=`do_get_gateway_info wifi.ap_ssid`
+
+    # get old pwd
+    old_ap_pwd=`do_get_gateway_info wifi.ap_pwd`
+
+    # dialog ip
+    dialog --title "AP SSID" --nocancel --inputbox "SSID:" 10 40 "$old_ap_ssid" 2> /tmp/rak_ssid & 
+    RET=$?
+
+    if [ $RET -eq 1 ]; then
+        clear
+    elif [ $RET -eq 0 ]; then
+        new_ap_ssid="$( cat /tmp/rak_ssid  )"
+        rm /tmp/rak_ssid
+        ssid_len=${#new_ap_ssid}
+    fi
+
+    #dialog pwd
+    dialog --title "AP Password" --nocancel --inputbox "Password:" 10 40 "$old_ap_pwd"  2> /tmp/rak_ap_pwd &
+    if [ $RET -ne 0 ]; then
+        clear
+    else
+        new_ap_pwd="$( cat /tmp/rak_ap_pwd  )"
+        pwd_len=${#new_ap_pwd}
+        rm /tmp/rak_ap_pwd
+
+    fi
+
+    if [ $ssid_len -eq 0 ] || [ $pwd_len -eq 0 ] || [ $pwd_len -lt 8 ] ||[ $pwd_len -gt 63 ]; then
+        if [ $ssid_len -eq 0 ]; then
+            dialog --title "Configure AP SSID" --msgbox "SSID cannot be empty." 5 28
+        elif [ $pwd_len -eq 0 ] || [ $pwd_len -lt 8 ] ||[ $pwd_len -gt 63 ]; then
+            dialog --title "Configure AP Password" --msgbox "Invalid passphrase length ${pwd_len} (expected: 8..63)." 5 52
+        else
+            clear
+        fi
+    else
+        sed -i "26c SSID=$new_ap_ssid" /usr/local/rak/ap/create_ap.conf
+        sed -i "27c PASSPHRASE=$new_ap_pwd" /usr/local/rak/ap/create_ap.conf
+
+        write_json_ap_ssid $new_ap_ssid
+        write_json_ap_pwd $new_ap_pwd
+        dialog --title "Configute AP info" --msgbox "Modify AP info success.Changes will take effect after OS restart." 5 72
+    fi
+
+}
+
+INTERACTIVE=True
+
+get_wifi_country() {
+  CODE=${1:-0}
+  IFACE="$(list_wlan_interfaces | head -n 1)"
+  if [ -z "$IFACE" ]; then
+    if [ "$INTERACTIVE" = True ]; then
+      whiptail --msgbox "No wireless interface found" 20 60
+    fi
+    return 1
+  fi
+  if ! wpa_cli -i "$IFACE" status > /dev/null 2>&1; then
+    if [ "$INTERACTIVE" = True ]; then
+      whiptail --msgbox "Could not communicate with wpa_supplicant" 20 60
+    fi
+    return 1
+  fi
+  wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
+  COUNTRY="$(wpa_cli -i "$IFACE" get country)"
+  if [ "$COUNTRY" = "FAIL" ]; then
+    return 1
+  fi
+  if [ $CODE = 0 ]; then
+    echo "$COUNTRY"
+  fi
+  return 0
+}
+
+do_wifi_country() {
+  IFACE="$(list_wlan_interfaces | head -n 1)"
+  if [ -z "$IFACE" ]; then
+    if [ "$INTERACTIVE" = True ]; then
+      whiptail --msgbox "No wireless interface found" 20 60
+    fi
+    return 1
+  fi
+
+  if ! wpa_cli -i "$IFACE" status > /dev/null 2>&1; then
+    if [ "$INTERACTIVE" = True ]; then
+      whiptail --msgbox "Could not communicate with wpa_supplicant" 20 60
+    fi
+    return 1
+  fi
+
+  oIFS="$IFS"
+  if [ "$INTERACTIVE" = True ]; then
+    IFS="/"
+    value=$(cat /usr/share/zoneinfo/iso3166.tab | tail -n +26 | tr '\t' '/' | tr '\n' '/')
+    COUNTRY=$(whiptail --nocancel --menu "Select the country in which the Pi is to be used" 20 60 10 ${value} 3>&1 1>&2 2>&3)
+    IFS=$oIFS
+  else
+    COUNTRY=$1
+    true
+  fi
+  if [ $? -eq 0 ];then
+    wpa_cli -i "$IFACE" set country "$COUNTRY"
+    wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
+    if ! iw reg set "$COUNTRY" 2> /dev/null; then
+        ASK_TO_REBOOT=1
+    fi
+    if hash rfkill 2> /dev/null; then
+        rfkill unblock wifi
+    fi
+    if [ "$INTERACTIVE" = True ]; then
+        whiptail --msgbox "Wi-fi country set to $COUNTRY" 20 60 1
+    fi
+  fi
+}
+
+list_wlan_interfaces() {
+  for dir in /sys/class/net/*/wireless; do
+    if [ -d "$dir" ]; then
+      basename "$(dirname "$dir")"
+    fi
+  done
+}
+
+do_check_if_wifi_mode()
+{
+    default_item=`do_get_gateway_info wifi.wifi_mode`
+echo "do_check_if_wifi_mode default_item:$default_item"
+    if [ "$default_item" = "1" ]; then
+        echo "do_check_if_wifi_mode  ap"
+        return 1
+    else
+        echo "do_check_if_wifi_mode  wifi"
+        return 0
+    fi
+}
+
+do_wifi_ssid_passphrase() {
+  do_check_if_wifi_mode
+  default_item=$?
+  if [ "$default_item" = "1" ]; then
+    whiptail --msgbox "Please disable ap mode first." 8 35
+    return 0
+  fi
+  RET=0
+  IFACE_LIST="$(list_wlan_interfaces)"
+  IFACE="$(echo "$IFACE_LIST" | head -n 1)"
+
+  if [ -z "$IFACE" ]; then
+    if [ "$INTERACTIVE" = True ]; then
+      whiptail --msgbox "No wireless interface found" 20 60
+    fi
+    return 1
+  fi
+
+  if ! wpa_cli -i "$IFACE" status > /dev/null 2>&1; then
+    if [ "$INTERACTIVE" = True ]; then
+      whiptail --msgbox "Could not communicate with wpa_supplicant" 20 60
+    fi
+    return 1
+  fi
+
+  if [ "$INTERACTIVE" = True ] && [ -z "$(get_wifi_country)" ]; then
+    do_wifi_country "not_goto_main_menu"
+  fi
+
+  SSID="$1"
+  while [ -z "$SSID" ] && [ "$INTERACTIVE" = True ]; do
+    SSID=$(whiptail --nocancel --inputbox "Please enter SSID" 10 60 3>&1 1>&2 2>&3)
+    if [ $? -ne 0 ]; then
+      return 0
+    elif [ -z "$SSID" ]; then
+      whiptail --msgbox "SSID cannot be empty. Please try again." 20 60
+    fi
+  done
+
+  PASSPHRASE="$2"
+  while [ "$INTERACTIVE" = True ]; do
+    PASSPHRASE=$(whiptail --nocancel --inputbox "Please enter passphrase. Leave it empty if none." 10 60 3>&1 1>&2 2>&3)
+    if [ $? -ne 0 ]; then
+      return 0
+    else
+      break
+    fi
+  done
+
+  # Escape special characters for embedding in regex below
+  local ssid="$(echo "$SSID" \
+   | sed 's;\\;\\\\;g' \
+   | sed -e 's;\.;\\\.;g' \
+         -e 's;\*;\\\*;g' \
+         -e 's;\+;\\\+;g' \
+         -e 's;\?;\\\?;g' \
+         -e 's;\^;\\\^;g' \
+         -e 's;\$;\\\$;g' \
+         -e 's;\/;\\\/;g' \
+         -e 's;\[;\\\[;g' \
+         -e 's;\];\\\];g' \
+         -e 's;{;\\{;g'   \
+         -e 's;};\\};g'   \
+         -e 's;(;\\(;g'   \
+         -e 's;);\\);g'   \
+         -e 's;";\\\\\";g')"
+
+  wpa_cli -i "$IFACE" list_networks \
+   | tail -n +2 | cut -f -2 | grep -P "\t$ssid$" | cut -f1 \
+   | while read ID; do
+    wpa_cli -i "$IFACE" remove_network "$ID" > /dev/null 2>&1
+  done
+
+  ID="$(wpa_cli -i "$IFACE" add_network)"
+  wpa_cli -i "$IFACE" set_network "$ID" ssid "\"$SSID\"" 2>&1 | grep -q "OK"
+  RET=$((RET + $?))
+
+  if [ -z "$PASSPHRASE" ]; then
+    wpa_cli -i "$IFACE" set_network "$ID" key_mgmt NONE 2>&1 | grep -q "OK"
+    RET=$((RET + $?))
+  else
+    wpa_cli -i "$IFACE" set_network "$ID" psk "\"$PASSPHRASE\"" 2>&1 | grep -q "OK"
+    RET=$((RET + $?))
+  fi
+
+  wpa_cli -i "$IFACE" save_config > /dev/null 2>&1
+  sudo sed -i '/disabled/d' /etc/wpa_supplicant/wpa_supplicant.conf
+
+  return $RET
+}
+
+do_configure_wifi() {
+    default_item=`do_get_gateway_info wifi.wifi_mode`
+
+    FUN=$(dialog --title "Configure wifi" --cancel-label "Cancel" --default-item $default_item --menu "Configuration options:" 14 60 20 \
+        1 "Enable AP Mode/Disable Client Mode"    \
+        2 "Enable Client Mode/Disable AP Mode" \
+        3 "Modify SSID and pwd for AP Mode"    \
+        4 "Add New SSID for Client" \
+        5 "Change Wi-fi Country"    \
+        3>&1 1>&2 2>&3)
+    RET=$?
+    if [ $RET -eq 0 ]; then
+        case "$FUN" in
+            1) do_enable_ap_mode;;
+            2) do_enable_wifi_mode;;
+            3) do_modify_ssid_for_ap;;
+            4) do_wifi_ssid_passphrase;;
+            5) do_wifi_country;;
+        esac
+    fi
+
+    do_main_menu
+}
+
+do_configure_lan() {
+    GATEWAY_EUI_NIC="eth0"
+    if [[ `grep "$GATEWAY_EUI_NIC" /proc/net/dev` == "" ]]; then
+        dialog --title "Configure LAN" --msgbox "LAN configuration is not supported on your Raspberry Pi model." 5 66
+    else
+      rm /tmp/eth0_ip -rf
+      mkfifo /tmp/eth0_ip
+
+      rm /tmp/eth0_gw -rf
+      mkfifo /tmp/eth0_gw
+
+      # get old ip
+      old_eth0_ip=`do_get_gateway_info lan.lan_ip`
+
+      # dialog ip
+      dialog --title "Set eth0 IP" --nocancel --inputbox "IP:" 10 40 "$old_eth0_ip" 2> /tmp/eth0_ip & 
+      RET=$?
+
+      if [ $RET -eq 1 ]; then
+          echo "error"
+      elif [ $RET -eq 0 ]; then
+          new_eth0_ip="$( cat /tmp/eth0_ip  )" 
+          do_check_ipaddr $new_eth0_ip
+          RET_IP=$?
+          rm /tmp/eth0_ip
+      fi
+
+      # get old gw
+      old_eth0_gw=`do_get_gateway_info lan.lan_gw`
+
+      # dialog eth0 gw
+      dialog --title "Set eth0 route IP" --nocancel --inputbox "Route IP:" 10 40 "$old_eth0_gw" 2> /tmp/eth0_gw & 
+      RET=$?
+
+      if [ $RET -eq 1 ]; then
+          echo "error"
+      elif [ $RET -eq 0 ]; then
+          new_eth0_gw="$( cat /tmp/eth0_gw  )" 
+          do_check_ipaddr $new_eth0_gw
+          RET_GW=$?
+          rm /tmp/eth0_gw
+      fi
+      
+      if [ $RET_IP -eq 1 ]; then
+          dialog --title "Configure LAN" --msgbox "Invalid IP address." 5 50
+      elif [ $RET_GW -eq 1 ]; then
+          dialog --title "Configure LAN" --msgbox "Invalid Route IP address." 5 50
+      else
+
+          linenum=`sed -n '/RAK_eth0_IP/=' /etc/dhcpcd.conf`
+          let line_ip=linenum+2
+          let line_gw=linenum+3
+
+          sed -i "${line_ip}cstatic ip_address=${new_eth0_ip}" /etc/dhcpcd.conf
+          sed -i "${line_gw}cstatic routers=${new_eth0_gw}" /etc/dhcpcd.conf
+          write_json_lan_ip ${new_eth0_ip}
+          write_json_lan_gw ${new_eth0_gw}
+          dialog --title "Configure LAN" --msgbox "Configure LAN success.Changes will take effect after OS restart." 5 70
+      fi
+    fi
+    do_main_menu
+}
+
+do_enable_2013()
+{
+    write_json_lte_mode 1
+    systemctl enable rak-pppd
+    dialog --title "Enable LTE Module" --msgbox "The LTE module will power on after the operating system starts." 5 70
+#    do_main_menu
+}
+
+do_disable_2013()
+{
+    write_json_lte_mode 2
+    systemctl disable rak-pppd
+    dialog --title "Disable LTE Module" --msgbox "The LTE module will not power on after the operating system starts." 5 71
+}
+
+do_rak2013()
+{
+    # get lte module status
+    default_item=`do_get_gateway_info lte_mode`
+
+    FUN=$(dialog --title "LTE Module" --cancel-label "Cancel" --default-item $default_item --menu "Configuration options:" 10 60 20 \
+        1 "Enable LTE Automatic Dial-up" \
+        2 "Disable LTE Automatic Dial-up" \
+        3>&1 1>&2 2>&3)
+    RET=$?
+    if [ $RET -eq 1 ]; then
+        clear
+    elif [ $RET -eq 0 ]; then
+        case "$FUN" in
+            1) do_enable_2013;;
+            2) do_disable_2013;;
+        esac
+    fi
+    do_main_menu
+}
+
+do_set_apn_name()
+{
+    # get old apn
+    old_apn=`do_get_gateway_info apn.apn_name`
+
+    # get old baud speed
+    old_baud=`do_get_gateway_info apn.apn_baud`
+
+    rm /tmp/apn_name -rf
+    mkfifo /tmp/apn_name
+    rm /tmp/band_speed -rf
+    mkfifo /tmp/band_speed
+    dialog --title "APN Name" --nocancel --inputbox "APN Name:" 10 40 "$old_apn" 2> /tmp/apn_name & 
+    dialog --title "Baud Speed" --nocancel --inputbox "Baud Speed:" 10 40 "$old_baud" 2> /tmp/band_speed &
+    RET=$?
+
+    if [ $RET -eq 1 ]; then
+        echo "error"
+    elif [ $RET -eq 0 ]; then
+        new_apn_name="$( cat /tmp/apn_name  )" 
+        new_baud_speed="$( cat /tmp/band_speed  )"
+
+        RET2=`do_check_variable_type $new_baud_speed`
+        if [ $RET2 -ne 0 ]; then
+            dialog --title "Baud Speed" --msgbox "Invalid baud speed." 5 40
+        else
+            /usr/local/rak/lte/ppp-creator.sh "${new_apn_name}" ttyAMA0 ${new_baud_speed} >/dev/null
+            rm /tmp/apn_name -rf
+            rm /tmp/band_speed -rf
+
+            write_json_apn_name $new_apn_name
+            write_json_apn_baud $new_baud_speed
+        fi
+    fi
+    do_main_menu
+}
+
+do_main_menu() {
+
+  FUN=$(dialog --title "$GW_MODEL (Version: $GW_VERSION)" --cancel-label "Quit" --menu "Configuration options:" 19 80 16 \
+      5 "Configure WIFI" \
+      6 "Configure APN name" \
+      7 "Configure LTE Module"    \
+      3>&1 1>&2 2>&3)
+  RET=$?
+  if [ $RET -eq 1 ]; then
+      clear
+      return 0
+  elif [ $RET -eq 0 ]; then
+      case "$FUN" in
+          5) do_configure_wifi;;
+          6) do_set_apn_name;;
+          7) do_rak2013;;
+      esac
+  fi
+}
+
+if [ $(id -u) -ne 0 ]; then
+  printf "Script must be run as root. Try 'sudo $0'\n"
+  exit 1
+fi
+
+do_main_menu

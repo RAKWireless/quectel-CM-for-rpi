@@ -1,0 +1,33 @@
+#!/bin/bash
+
+SCRIPT_COMMON_FILE=/usr/local/rak/shell_script/rak_common.sh
+source $SCRIPT_COMMON_FILE
+
+if [ -f "/boot/rak_ap" ]; then
+        echo "ctrl_interface=DIR=/var/run/wpa_supplicant GROUP=netdev
+update_config=1" > /etc/wpa_supplicant/wpa_supplicant.conf
+        rm -rf /boot/rak_ap
+        systemctl enable create_ap.service
+        write_json_wifi_mode 1
+        reboot
+fi
+
+# first boot, set ssid
+if [ -f "/usr/local/rak/first_boot/set_ssid" ]; then
+        cd /usr/local/rak/first_boot
+        sudo ./set_ssid
+        mv /usr/local/rak/first_boot/set_ssid /usr/local/rak/first_boot/set_ssid_bak
+fi
+
+# first boot, expand sd card
+if [ -f "/usr/local/rak/first_boot/expand_rootfs.sh" ]; then
+        /usr/local/rak/first_boot/expand_rootfs.sh
+        mv /usr/local/rak/first_boot/expand_rootfs.sh /usr/local/rak/first_boot/expand_rootfs_bak.sh
+        reboot
+fi
+
+
+pushd /usr/local/rak/bin
+./active_lte_module.sh
+popd
+
