@@ -48,12 +48,17 @@ cp /tmp/files/quectel-CM/quectel-CM /usr/local/rak/qmi/ -f
 cp /tmp/files/quectel-CM/quectel-qmi-proxy /usr/local/rak/qmi/ -f
 
 cp qmi_connect.sh /usr/local/rak/qmi/
+cp modify_apn.sh /usr/local/rak/qmi/
+
 if [ "$1" = "RAK2013" ]; then
     cp active_lte_module_2013.sh /usr/local/rak/qmi/active_lte_module.sh
+    cp active_lte_module_2013.sh /usr/local/rak/bin/active_lte_module.sh
 elif [ "$1" = "RAK8213" ]; then
     cp active_lte_module_8213.sh /usr/local/rak/qmi/active_lte_module.sh
+    cp active_lte_module_8213.sh /usr/local/rak/bin/active_lte_module.sh
 else
-    cp active_lte_module_2013.sh /usr/local/rak/qmi/active_lte_module.sh
+    cp active_lte_module_8213.sh /usr/local/rak/qmi/active_lte_module.sh
+    cp active_lte_module_8213.sh /usr/local/rak/bin/active_lte_module.sh
 fi
 
 cp qmi_connect.service /etc/systemd/system/

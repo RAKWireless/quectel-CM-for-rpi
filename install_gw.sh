@@ -88,7 +88,7 @@ if [ "$INSTALL_ONLY_QMI" = 1 ]; then
     popd
 fi
 
-pushd lora
+pushd qmi
 ./install.sh $CREATE_IMG
 sleep 1
 popd
