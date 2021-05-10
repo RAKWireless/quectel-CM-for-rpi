@@ -29,7 +29,7 @@ step2 : Reboot raspberry pi, After restarting, use "uname -r" to confirm the ker
 
 step3 : Clone the installer and start the installation.
 
-      $ git clone https://github.com/RAKWireless/quectel-CM-for-rpi.git ~/quectel-CM-for-rpi
+      $ git clone https://github.com/tvelev/quectel-CM-for-rpi.git ~/quectel-CM-for-rpi
       $ cd ~/quectel-CM-for-rpi
       $ sudo ./install.sh
 
