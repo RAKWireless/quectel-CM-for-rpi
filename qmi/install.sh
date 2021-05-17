@@ -21,7 +21,7 @@ unzip quectel-CM.zip -d /tmp/files/
 
 echo -e "\033[1;33m Checking Kernel\033[0m"
 case $(uname -r) in
-    4.19*) echo $(uname -r) based kernel found 
+    5.*) echo $(uname -r) based kernel found 
         unzip drivers.zip -d /tmp/files/ ;;
     *) echo "Driver for $(uname -r) kernel not found";exit 1;
 
